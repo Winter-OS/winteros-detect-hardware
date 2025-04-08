@@ -1,5 +1,6 @@
 mod system_info;
 use system_info::VgaInfo;
+mod hardware_driver;
 
 fn main() {
     let vga_info = VgaInfo::new().expect("Impossible to read vga info");
@@ -16,4 +17,12 @@ fn main() {
         }
     );
     println!("{:#?}", vga_info);
+
+    println!(
+        "{:#?}",
+        match hardware_driver::get_git_tree("NixOS", "nixos-hardware") {
+            Ok(ret) => ret,
+            Err(err) => panic!("{}", err),
+        }
+    );
 }
