@@ -18,7 +18,6 @@ impl HardwareModule {
     ) -> reqwest::blocking::Response {
         while response.status() == StatusCode::FORBIDDEN {
             if let Some(reset_time_header) = response.headers().get("X-RateLimit-Reset") {
-                println!("{:?}", reset_time_header);
                 if let Ok(reset_time) = reset_time_header.to_str().unwrap_or("0").parse::<u64>() {
                     let current_time =
                         match SystemTime::now().duration_since(SystemTime::UNIX_EPOCH) {
@@ -45,7 +44,7 @@ impl HardwareModule {
         let mut response = match client
             .get(&url)
             .header("Accept", "application/json")
-            .header("User-Agent", "Rust")
+            .header("User-Agent", "WinterOS")
             .send()
         {
             Ok(resp) => resp,
@@ -88,7 +87,7 @@ impl HardwareModule {
         let mut response = match client
             .get(&url)
             .header("Accept", "application/json")
-            .header("User-Agent", "Rust")
+            .header("User-Agent", "WinterOS")
             .send()
         {
             Ok(resp) => resp,
@@ -163,5 +162,13 @@ impl HardwareModule {
             }
         }
         Ok(hardware)
+    }
+
+    pub fn get_computer_module(&self) -> &Vec<String> {
+        return &self.module_computer;
+    }
+
+    pub fn get_common_module(&self) -> &Vec<String> {
+        return &self.module_common;
     }
 }
