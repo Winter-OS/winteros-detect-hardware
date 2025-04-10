@@ -156,4 +156,13 @@ impl VgaInfo {
             .1)
         }
     }
+
+    pub fn match_archtecture_codename(&self, codename: &str) -> bool {
+        for device in &self.vga_device {
+            if device.1.to_lowercase().contains(&codename.to_lowercase()) {
+                return true;
+            }
+        }
+        return false;
+    }
 }
