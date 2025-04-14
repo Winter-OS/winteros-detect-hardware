@@ -1,4 +1,6 @@
 mod system_info;
+use system_info::vga_info;
+use system_info::ComputerInfo;
 use system_info::VgaInfo;
 
 mod hardware_driver;
@@ -7,12 +9,83 @@ use hardware_driver::HardwareModule;
 use std::sync::mpsc;
 use std::thread;
 
-fn get_computer_hardware_module(hardware_module: &HardwareModule) -> Option<&String> {
-    let vendor = match system_info::computer_info::get_vendor() {
+use regex::Regex;
+use std::process::{Command, Stdio};
+
+/*
+fn get_fullpath_computer_hardware_module<'a, 'b>(
+    hardware_module: &'a HardwareModule,
+    vga_info: &'b VgaInfo,
+    module_available: &'a [String],
+    current_path: &str,
+    depth: usize,
+) -> &'a [String] {
+    let mut v: Vec<&str> = vec![];
+
+    let mut last: &str = "";
+
+    let mut begin: Option<usize> = None;
+    let mut end: Option<usize> = None;
+
+    let name = system_info::computer_info::get_product_name().unwrap();
+
+    for i in 0..module_available.len() {
+        let module = &module_available[i];
+
+        let depth_info = module.split("/").collect::<Vec<&str>>()[depth];
+        println!("{}, {}", module, depth_info);
+        if depth_info == last {
+            continue;
+        } else if let None = begin {
+            if depth_info
+                .split("-")
+                .all(|s| family.contains(s) || name.contains(s))
+            {
+                begin = Some(i);
+            }
+            last = depth_info;
+        } else {
+            end = Some(i)
+        }
+    }
+    if let Some(_) = begin
+        && let None = end
+    {
+        end = Some(module_available.len())
+    }
+
+    let b = begin.unwrap();
+    let e = end.unwrap();
+
+    module_available.as_ref()[b..e].as_ref()
+}
+
+
+
+fn get_computer_hardware_module<'a, 'b>(
+    hardware_module: &'a HardwareModule,
+    vga_info: &'b VgaInfo,
+) -> Option<&'a [String]> {
+    let list_vendor = list_all_vendor(hardware_module);
+    let vendor_name = match system_info::computer_info::get_vendor() {
         Ok(v) => v,
         Err(_) => return None,
-    }
-    .to_lowercase();
+    };
+    let vendor = match HARDWARE_VENDOR_REPLACMENT
+        .iter()
+        .position(|(s, _)| s.contains(&vendor_name))
+    {
+        Some(i) => HARDWARE_VENDOR_REPLACMENT[i].1,
+        None => {
+            list_vendor[match list_vendor
+                .iter()
+                .position(|&s| vendor_name.to_lowercase().contains(s))
+            {
+                Some(index) => index,
+                None => return None,
+            }]
+        }
+    };
 
     let computer_module = hardware_module.get_computer_module();
 
@@ -29,12 +102,214 @@ fn get_computer_hardware_module(hardware_module: &HardwareModule) -> Option<&Str
         computer_module[b..e].as_ref()
     };
     println!("{:#?}", vendor_hardware_module);
-    Some(vendor_hardware_module.first()?)
+    Some(get_fullpath_computer_hardware_module(
+        hardware_module,
+        vga_info,
+        vendor_hardware_module,
+        vendor,
+        1,
+    ))
+}*/
+
+fn get_hardware_module_path_rec<'a>(
+    hardware_module: &'a [String],
+    computer_info: &ComputerInfo,
+    vga_info: &VgaInfo,
+    depth: usize,
+) -> Option<&'a String> {
+    if hardware_module.len() == 1 {
+        return Some(&hardware_module[0]);
+    } else if hardware_module.len() == 0 {
+        return None;
+    }
+
+    let mut match_module: Option<&str> = None;
+    let mut begin: Option<usize> = None;
+    let mut end: Option<usize> = None;
+    let mut common_b: Option<usize> = None;
+    let mut common_e: Option<usize> = None;
+    let mut def: Option<usize> = None;
+    let mut nvidia: Option<usize> = None;
+    let mut amdgpu: Option<usize> = None;
+
+    for i in 0..hardware_module.len() {
+        let module = hardware_module[i].split("/").collect::<Vec<&str>>()[depth];
+        if module.eq("common") {
+            if let None = common_b {
+                common_b = Some(i);
+            }
+            common_e = Some(i + 1);
+            if let Some(_) = begin {
+                end = Some(i);
+            }
+            continue;
+        } else if module.eq("default.nix") {
+            def = Some(i);
+            if let Some(_) = begin {
+                end = Some(i);
+            }
+            continue;
+        } else if module.eq("amdgpu") {
+            amdgpu = Some(i);
+            if let Some(_) = begin {
+                end = Some(i);
+            }
+            continue;
+        } else if module.eq("nvidia") {
+            nvidia = Some(i);
+            if let Some(_) = begin {
+                end = Some(i);
+            }
+            continue;
+        }
+
+        match match_module {
+            None if module.split("-").all(|s| {
+                computer_info.get_product_name().contains(s)
+                    || computer_info.get_product_family().contains(s)
+            }) =>
+            {
+                match_module = Some(module);
+                begin = Some(i);
+            }
+            Some(m) if m.ne(module) => {
+                end = Some(i);
+                break;
+            }
+            _ => continue,
+        };
+    }
+    if let None = begin {
+        if let Some(c) = common_b {
+            let e = common_e.unwrap();
+            return get_hardware_module_path_rec(
+                &hardware_module[c..e],
+                computer_info,
+                vga_info,
+                depth + 1,
+            );
+        } else {
+            match nvidia {
+                Some(n) if vga_info.has_nvidia_device() => return Some(&hardware_module[n]),
+                None | Some(_) => match amdgpu {
+                    Some(a) if vga_info.match_archtecture_codename("amd") => {
+                        return Some(&hardware_module[a])
+                    }
+                    None | Some(_) => match def {
+                        Some(d) => return Some(&hardware_module[d]),
+                        None => (),
+                    },
+                },
+            };
+        }
+    }
+    if let None = end {
+        return get_hardware_module_path_rec(
+            &hardware_module[begin.unwrap()..],
+            computer_info,
+            vga_info,
+            depth + 1,
+        );
+    }
+    return get_hardware_module_path_rec(
+        &hardware_module[begin.unwrap()..end.unwrap()],
+        computer_info,
+        vga_info,
+        depth + 1,
+    );
+}
+
+fn get_hardware_module_path_family<'a>(
+    hardware_module: &'a [String],
+    computer_info: &ComputerInfo,
+    vga_info: &VgaInfo,
+) -> Option<&'a String> {
+    let mut match_family_module: Option<&str> = None;
+    let mut begin: Option<usize> = None;
+    let mut end: Option<usize> = None;
+    for i in 0..hardware_module.len() {
+        let family_module = hardware_module[i].split("/").collect::<Vec<&str>>()[1];
+        match match_family_module {
+            None if family_module
+                .split("-")
+                .all(|s| computer_info.get_product_family().contains(s)) =>
+            {
+                match_family_module = Some(family_module);
+                begin = Some(i);
+            }
+            Some(m) if m.ne(family_module) => {
+                end = Some(i);
+                break;
+            }
+            _ => continue,
+        };
+    }
+    if let None = begin {
+        return None;
+    }
+    if let None = end {
+        return get_hardware_module_path_rec(
+            &hardware_module[begin.unwrap()..],
+            computer_info,
+            vga_info,
+            2,
+        );
+    }
+    return get_hardware_module_path_rec(
+        &hardware_module[begin.unwrap()..end.unwrap()],
+        computer_info,
+        vga_info,
+        2,
+    );
+}
+
+fn list_all_vendor(hardware_module: &HardwareModule) -> Vec<&str> {
+    let mut v: Vec<&str> = vec![];
+    let mut last: &str = "";
+    for hard_mod in hardware_module.get_computer_module() {
+        let vendor = hard_mod.split("/").collect::<Vec<&str>>()[0];
+        if vendor != last {
+            v.push(vendor);
+            last = &vendor;
+        }
+    }
+    v
+}
+
+fn get_hardware_module_path<'a>(
+    hardware_module: &'a HardwareModule,
+    computer_info: &ComputerInfo,
+    vga_info: &VgaInfo,
+) -> Option<&'a String> {
+    let all_vendor = list_all_vendor(hardware_module);
+    let vendor = match all_vendor
+        .iter()
+        .position(|v| v.contains(computer_info.get_vendor()))
+    {
+        Some(p) => all_vendor[p],
+        None => return None,
+    };
+
+    let begin = hardware_module
+        .get_computer_module()
+        .iter()
+        .position(|s| s.starts_with(vendor))?;
+    let end = hardware_module.get_computer_module()[begin..]
+        .iter()
+        .position(|s| !s.starts_with(vendor))?
+        + begin;
+
+    get_hardware_module_path_family(
+        &hardware_module.get_computer_module()[begin..end],
+        computer_info,
+        vga_info,
+    )
 }
 
 fn main() {
     let (tvi, rvi) = mpsc::channel();
     let (thm, rhm) = mpsc::channel();
+    let (tci, rci) = mpsc::channel();
 
     thread::spawn(move || {
         let vga_info = VgaInfo::new().expect("Impossible to read vga info");
@@ -44,55 +319,80 @@ fn main() {
         let hardware_module = HardwareModule::new().expect("immposible to get available module");
         thm.send(hardware_module).unwrap();
     });
+    thread::spawn(move || {
+        let computer_info = ComputerInfo::new().expect("immposible to get computer info");
+        tci.send(computer_info).unwrap();
+    });
 
     let vga_info = rvi.recv().unwrap();
     let hardware_module = rhm.recv().unwrap();
-
-    println!("NVIDIA device ? {}", vga_info.has_nvidia_device());
-    println!(
-        "Laptop with NVIDIA device ? {}",
-        vga_info.has_nvidia_laptop()
-    );
-    println!(
-        "NVIDIA generation device : {}",
-        match vga_info.get_nvidia_generation() {
-            Ok(gen) => gen,
-            Err(_) => "none",
-        }
-    );
-    println!("{:#?}", vga_info);
-
-    println!(
-        "Architechture Poenix ? {}",
-        vga_info.match_archtecture_codename("phoenix")
-    );
-
-    println!(
-        "Ambiant light sensor ? {}",
-        system_info::computer_info::has_iio_device()
-    );
-    println!(
-        "Fingerprint sensor ? {}",
-        system_info::computer_info::has_fingerprint_device()
-    );
-    println!(
-        "Vendor : {}",
-        system_info::computer_info::get_vendor().unwrap()
-    );
-    println!(
-        "Product name : {}",
-        system_info::computer_info::get_product_name().unwrap()
-    );
-    println!(
-        "Product family : {}",
-        system_info::computer_info::get_product_family().unwrap()
-    );
+    let computer_info = rci.recv().unwrap();
 
     println!(
         "{}",
-        get_computer_hardware_module(&hardware_module).unwrap()
+        get_hardware_module_path(&hardware_module, &computer_info, &vga_info)
+            .unwrap()
+            .strip_suffix("/default.nix")
+            .unwrap()
     );
 
+    // Exécution de la commande cpuid -1 pour obtenir toutes les couches de identification du CPU
+    let output = match Command::new("cpuid").output() {
+        Ok(out) => out,
+        Err(_) => panic!("Failed to execute lspci command"),
+    };
+
+    // Attendre que la commande soit terminée et lire son output
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    let lines: Vec<&str> = stdout.trim().split('\n').collect();
+    // Rechercher les lignes qui contiennent "synth"
+    //
+    let p = lines.iter().rposition(|s| s.contains("(synth)")).unwrap();
+
+    let pattern = Regex::new(r"\[.*?\]").unwrap();
+
+    println!(
+        "{}",
+        pattern
+            .find(lines[p])
+            .unwrap()
+            .as_str()
+            .strip_prefix("[")
+            .unwrap()
+            .strip_suffix("]")
+            .unwrap()
+    );
+    // println!("NVIDIA device ? {}", vga_info.has_nvidia_device());
+    // println!(
+    //     "Laptop with NVIDIA device ? {}",
+    //     vga_info.has_nvidia_laptop()
+    // );
+    // println!(
+    //     "NVIDIA generation device : {}",
+    //     match vga_info.get_nvidia_generation() {
+    //         Ok(gen) => gen,
+    //         Err(_) => "none",
+    //     }
+    // );
+    // println!("{:#?}", vga_info);
+
+    // println!(
+    //     "Architechture Poenix ? {}",
+    //     vga_info.match_archtecture_codename("phoenix")
+    // );
+
+    // println!(
+    //     "Ambiant light sensor ? {}",
+    //     system_info::computer_info::ComputerInfo::has_iio_device()
+    // );
+    // println!(
+    //     "Fingerprint sensor ? {}",
+    //     system_info::computer_info::ComputerInfo::has_fingerprint_device()
+    // );
+    // println!(
+    //     "{:#?}",
+    //     system_info::computer_info::ComputerInfo::new().unwrap()
+    // );
     // let a = vec![
     //     "acer/aspire/4810t/default.nix",
     //     "airis/n990/default.nix",
