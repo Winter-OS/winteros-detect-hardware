@@ -336,9 +336,43 @@ fn main() {
     let hardware_module = rhm.recv().unwrap();
     let computer_info = rci.recv().unwrap();
 
+    println!("NVIDIA device ? {}", vga_info.has_nvidia_device());
     println!(
-        "{}",
-        get_hardware_module_path(&hardware_module, &computer_info, &vga_info).unwrap()
+        "Laptop with NVIDIA device ? {}",
+        vga_info.has_nvidia_laptop()
+    );
+    println!(
+        "NVIDIA generation device : {}",
+        match vga_info.get_nvidia_generation() {
+            Ok(gen) => gen,
+            Err(_) => "none",
+        }
+    );
+    println!("{:#?}", vga_info);
+
+    println!(
+        "Architechture Poenix ? {}",
+        vga_info.match_archtecture_codename("phoenix")
+    );
+
+    println!(
+        "Ambiant light sensor ? {}",
+        system_info::computer_info::ComputerInfo::has_iio_device()
+    );
+    println!(
+        "Fingerprint sensor ? {}",
+        system_info::computer_info::ComputerInfo::has_fingerprint_device()
+    );
+    println!("Product vendor : {}", computer_info.get_vendor());
+    println!("Product family : {}", computer_info.get_product_family());
+    println!("Product name : {}", computer_info.get_product_name());
+
+    println!(
+        "Computer module : {}",
+        match get_hardware_module_path(&hardware_module, &computer_info, &vga_info) {
+            Some(m) => m,
+            None => "no module",
+        }
     );
 
     // Exécution de la commande cpuid -1 pour obtenir toutes les couches de identification du CPU
@@ -356,11 +390,10 @@ fn main() {
         .iter()
         .rposition(|s| s.starts_with("   (synth)"))
         .unwrap();
-    println!("{}", lines[p]);
     let pattern = Regex::new(r"\(.*?\)").unwrap();
 
     println!(
-        "{}",
+        "CPU Codename : {}",
         pattern
             .find(lines[p].strip_prefix("   (synth)").unwrap())
             .unwrap()
@@ -370,37 +403,6 @@ fn main() {
             .strip_suffix(")")
             .unwrap()
     );
-    // println!("NVIDIA device ? {}", vga_info.has_nvidia_device());
-    // println!(
-    //     "Laptop with NVIDIA device ? {}",
-    //     vga_info.has_nvidia_laptop()
-    // );
-    // println!(
-    //     "NVIDIA generation device : {}",
-    //     match vga_info.get_nvidia_generation() {
-    //         Ok(gen) => gen,
-    //         Err(_) => "none",
-    //     }
-    // );
-    // println!("{:#?}", vga_info);
-
-    // println!(
-    //     "Architechture Poenix ? {}",
-    //     vga_info.match_archtecture_codename("phoenix")
-    // );
-
-    // println!(
-    //     "Ambiant light sensor ? {}",
-    //     system_info::computer_info::ComputerInfo::has_iio_device()
-    // );
-    // println!(
-    //     "Fingerprint sensor ? {}",
-    //     system_info::computer_info::ComputerInfo::has_fingerprint_device()
-    // );
-    // println!(
-    //     "{:#?}",
-    //     system_info::computer_info::ComputerInfo::new().unwrap()
-    // );
     // let a = vec![
     //     "acer/aspire/4810t/default.nix",
     //     "airis/n990/default.nix",
