@@ -147,10 +147,7 @@ impl HardwareModule {
                         .trim()
                         .to_string();
                     if path.starts_with("common/") {
-                        if path.ends_with("default.nix")
-                            || path.ends_with("prime.nix")
-                            || path.ends_with("prime-sync.nix")
-                        {
+                        if path.ends_with("default.nix") {
                             hardware.module_common.push(path);
                         }
                     } else {

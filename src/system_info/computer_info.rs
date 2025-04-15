@@ -134,4 +134,11 @@ impl ComputerInfo {
         }
         return false;
     }
+
+    pub fn has_hdd() -> bool {
+        match fs::read_to_string("/sys/block/sda/queue/rotational") {
+            Ok(statue) => return statue.trim().eq("1"),
+            Err(_) => false,
+        }
+    }
 }

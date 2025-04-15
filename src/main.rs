@@ -81,15 +81,12 @@ fn main() {
 
     println!(
         "Hardware module : {:#?}",
-        DriverConfig::get_common_hardware_module(
-            &hardware_module,
-            &computer_info,
-            &vga_info,
-            &cpu_info
-        )
+        DriverConfig::get_common_hardware_module(&hardware_module, &vga_info, &cpu_info)
     );
 
     println!("Is laptop : {}", ComputerInfo::is_laptop());
 
     println!("{}:{}", cpu_info.get_constructor(), cpu_info.get_codename());
+
+    println!("HDD ? {}", ComputerInfo::has_hdd());
 }

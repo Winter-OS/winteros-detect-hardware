@@ -212,9 +212,18 @@ impl DriverConfig<'_> {
         )
     }
 
+    fn restrict_range_str<'a>(range: &'a [String], prefix: &str) -> &'a [String] {
+        let b = range.iter().position(|s| s.starts_with(prefix)).unwrap();
+        let e = range[b..]
+            .iter()
+            .position(|s| !s.starts_with(prefix))
+            .unwrap()
+            + b;
+        &range[b..e]
+    }
+
     pub fn get_common_hardware_module<'a>(
         hardware_module: &'a HardwareModule,
-        computer_info: &ComputerInfo,
         vga_info: &VgaInfo,
         cpu_info: &CpuInfo,
     ) -> Vec<String> {
@@ -224,16 +233,7 @@ impl DriverConfig<'_> {
 
         // CPU
         let path_cpu = format!("common/cpu/{}/", cpu_info.get_constructor());
-        let b_cpu = common_module
-            .iter()
-            .position(|s| s.starts_with(&path_cpu))
-            .unwrap();
-        let e_cpu = common_module[b_cpu..]
-            .iter()
-            .position(|s| !s.starts_with(&path_cpu))
-            .unwrap()
-            + b_cpu;
-        let constructor_module = &common_module[b_cpu..e_cpu];
+        let constructor_module = Self::restrict_range_str(common_module, &path_cpu);
 
         all_module.push(
             match constructor_module.iter().position(|s| {
@@ -259,16 +259,8 @@ impl DriverConfig<'_> {
             // GPU Nvidia&
             match vga_info.get_nvidia_generation() {
                 Ok(arch) => {
-                    let b_nv = common_module
-                        .iter()
-                        .position(|s| s.starts_with("common/gpu/nvidia/"))
-                        .unwrap();
-                    let e_nv = common_module[b_nv..]
-                        .iter()
-                        .position(|s| !s.starts_with("common/gpu/nvidia/"))
-                        .unwrap()
-                        + b_nv;
-                    let nvidia_module = &common_module[b_nv..e_nv];
+                    let nvidia_module =
+                        Self::restrict_range_str(common_module, "common/gpu/nvidia/");
                     if let Some(p) = nvidia_module
                         .iter()
                         .position(|s| s.split('/').collect::<Vec<&str>>()[3].eq(arch))
@@ -284,6 +276,45 @@ impl DriverConfig<'_> {
                     }
                 }
                 Err(_) => all_module.push(String::from("common/gpu/nvidia")),
+            }
+            if vga_info.has_nvidia_laptop() {
+                all_module.push(String::from("common/gpu/nvidia/prime.nix"))
+            }
+        }
+        if vga_info.match_archtecture_codename("amd") {
+            // GPU AMD
+            let amd_module = Self::restrict_range_str(common_module, "common/gpu/amd/");
+            if let Some(s) = match amd_module.iter().position(|s| {
+                s.split('/')
+                    .collect::<Vec<&str>>()
+                    .get(3)
+                    .unwrap()
+                    .split('-')
+                    .collect::<Vec<&str>>()
+                    .iter()
+                    .all(|s2| vga_info.match_archtecture_codename(s2))
+            }) {
+                Some(p) => Some(
+                    amd_module[p]
+                        .strip_suffix("/default.nix")
+                        .unwrap()
+                        .to_string(),
+                ),
+                None => None,
+            } {
+                all_module.push(s);
+            }
+            all_module.push(String::from("common/gpu/amd/"));
+        }
+        if vga_info.match_archtecture_codename("intel") {
+            // GPU intel
+            all_module.push(String::from("common/gpu/intel/"));
+        }
+
+        if ComputerInfo::is_laptop() {
+            all_module.push(String::from("common/pc/laptop/"));
+            if ComputerInfo::has_hdd() {
+                all_module.push(String::from("common/pc/laptop/hdd"));
             }
         }
 
