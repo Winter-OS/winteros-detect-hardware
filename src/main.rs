@@ -10,7 +10,8 @@ use std::sync::mpsc;
 use std::thread;
 
 use regex::Regex;
-use std::process::{Command, Stdio};
+use std::path::Path;
+use std::process::Command;
 
 /*
 fn get_fullpath_computer_hardware_module<'a, 'b>(
@@ -314,6 +315,22 @@ fn get_hardware_module_path<'a>(
     )
 }
 
+fn is_laptop() -> bool {
+    let path = Path::new("/sys/class/power_supply");
+    if path.exists()
+        && path.is_dir()
+        && match path.read_dir() {
+            Ok(read_dir) => read_dir,
+            Err(_) => return false,
+        }
+        .next()
+        .is_some()
+    {
+        return true;
+    }
+    return false;
+}
+
 fn main() {
     let (tvi, rvi) = mpsc::channel();
     let (thm, rhm) = mpsc::channel();
@@ -403,6 +420,8 @@ fn main() {
             .strip_suffix(")")
             .unwrap()
     );
+
+    println!("Is laptop : {}", is_laptop());
     // let a = vec![
     //     "acer/aspire/4810t/default.nix",
     //     "airis/n990/default.nix",
