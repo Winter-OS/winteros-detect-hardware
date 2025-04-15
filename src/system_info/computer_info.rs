@@ -118,4 +118,20 @@ impl ComputerInfo {
         }
         return false;
     }
+
+    pub fn is_laptop() -> bool {
+        let path = Path::new("/sys/class/power_supply");
+        if path.exists()
+            && path.is_dir()
+            && match path.read_dir() {
+                Ok(read_dir) => read_dir,
+                Err(_) => return false,
+            }
+            .next()
+            .is_some()
+        {
+            return true;
+        }
+        return false;
+    }
 }
