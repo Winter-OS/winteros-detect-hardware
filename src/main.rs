@@ -116,9 +116,9 @@ fn get_hardware_module_path_rec<'a>(
     computer_info: &ComputerInfo,
     vga_info: &VgaInfo,
     depth: usize,
-) -> Option<&'a String> {
+) -> Option<&'a str> {
     if hardware_module.len() == 1 {
-        return Some(&hardware_module[0]);
+        return Some(hardware_module[0].strip_suffix("/default.nix")?);
     } else if hardware_module.len() == 0 {
         return None;
     }
@@ -190,13 +190,21 @@ fn get_hardware_module_path_rec<'a>(
             );
         } else {
             match nvidia {
-                Some(n) if vga_info.has_nvidia_device() => return Some(&hardware_module[n]),
+                Some(n) if vga_info.has_nvidia_device() => {
+                    return Some(hardware_module[n].strip_suffix("/default.nix")?)
+                }
                 None | Some(_) => match amdgpu {
                     Some(a) if vga_info.match_archtecture_codename("amd") => {
-                        return Some(&hardware_module[a])
+                        return Some(hardware_module[a].strip_suffix("default.nix")?)
                     }
                     None | Some(_) => match def {
-                        Some(d) => return Some(&hardware_module[d]),
+                        Some(d) => {
+                            println!(
+                                "{}",
+                                hardware_module[d].strip_suffix("/default.nix").unwrap()
+                            );
+                            return Some(hardware_module[d].strip_suffix("/default.nix")?);
+                        }
                         None => (),
                     },
                 },
@@ -223,7 +231,7 @@ fn get_hardware_module_path_family<'a>(
     hardware_module: &'a [String],
     computer_info: &ComputerInfo,
     vga_info: &VgaInfo,
-) -> Option<&'a String> {
+) -> Option<&'a str> {
     let mut match_family_module: Option<&str> = None;
     let mut begin: Option<usize> = None;
     let mut end: Option<usize> = None;
@@ -280,7 +288,7 @@ fn get_hardware_module_path<'a>(
     hardware_module: &'a HardwareModule,
     computer_info: &ComputerInfo,
     vga_info: &VgaInfo,
-) -> Option<&'a String> {
+) -> Option<&'a str> {
     let all_vendor = list_all_vendor(hardware_module);
     let vendor = match all_vendor
         .iter()
@@ -330,10 +338,7 @@ fn main() {
 
     println!(
         "{}",
-        get_hardware_module_path(&hardware_module, &computer_info, &vga_info)
-            .unwrap()
-            .strip_suffix("/default.nix")
-            .unwrap()
+        get_hardware_module_path(&hardware_module, &computer_info, &vga_info).unwrap()
     );
 
     // Exécution de la commande cpuid -1 pour obtenir toutes les couches de identification du CPU
@@ -347,19 +352,22 @@ fn main() {
     let lines: Vec<&str> = stdout.trim().split('\n').collect();
     // Rechercher les lignes qui contiennent "synth"
     //
-    let p = lines.iter().rposition(|s| s.contains("(synth)")).unwrap();
-
-    let pattern = Regex::new(r"\[.*?\]").unwrap();
+    let p = lines
+        .iter()
+        .rposition(|s| s.starts_with("   (synth)"))
+        .unwrap();
+    println!("{}", lines[p]);
+    let pattern = Regex::new(r"\(.*?\)").unwrap();
 
     println!(
         "{}",
         pattern
-            .find(lines[p])
+            .find(lines[p].strip_prefix("   (synth)").unwrap())
             .unwrap()
             .as_str()
-            .strip_prefix("[")
+            .strip_prefix("(")
             .unwrap()
-            .strip_suffix("]")
+            .strip_suffix(")")
             .unwrap()
     );
     // println!("NVIDIA device ? {}", vga_info.has_nvidia_device());
