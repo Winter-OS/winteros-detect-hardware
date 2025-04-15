@@ -26,10 +26,6 @@ impl CpuInfo {
         .trim();
         let pattern_constructor = Regex::new(r"AMD|Intel").unwrap();
         let pattern_codename = Regex::new(r"\(.*?\)").unwrap();
-        let constructor: String = match pattern_constructor.find(cpu) {
-            Some(s) => s.as_str().to_lowercase(),
-            None => return Err(String::from("Unknow CPU Constructor")),
-        };
         let constr: String = match pattern_constructor.find(cpu) {
             Some(s) => s.as_str().to_lowercase(),
             None => return Err(String::from("Unknow CPU Constructor")),

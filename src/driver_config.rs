@@ -1,14 +1,15 @@
-use crate::ComputerInfo;
-use crate::CpuInfo;
+use crate::system_info::ComputerInfo;
+use crate::system_info::CpuInfo;
+use crate::system_info::VgaInfo;
 use crate::HardwareModule;
-use crate::VgaInfo;
 
-pub struct DriverConfig<'a> {
-    impoted_module: Vec<&'a str>,
+#[derive(Debug)]
+pub struct DriverConfig {
+    impoted_module: Vec<String>,
     fingerprint: bool,
     iio_sensor: bool,
 }
-impl DriverConfig<'_> {
+impl DriverConfig {
     fn get_computer_hardware_module_rec<'a>(
         hardware_module: &'a [String],
         computer_info: &ComputerInfo,
@@ -182,7 +183,7 @@ impl DriverConfig<'_> {
         v
     }
 
-    pub fn get_computer_hardware_module<'a>(
+    fn get_computer_hardware_module<'a>(
         hardware_module: &'a HardwareModule,
         computer_info: &ComputerInfo,
         vga_info: &VgaInfo,
@@ -222,7 +223,7 @@ impl DriverConfig<'_> {
         &range[b..e]
     }
 
-    pub fn get_common_hardware_module<'a>(
+    fn get_common_hardware_module<'a>(
         hardware_module: &'a HardwareModule,
         vga_info: &VgaInfo,
         cpu_info: &CpuInfo,
@@ -319,6 +320,40 @@ impl DriverConfig<'_> {
         }
 
         all_module
+    }
+
+    pub fn new() -> Result<DriverConfig, String> {
+        let vga_info = match VgaInfo::new() {
+            Ok(vga) => vga,
+            Err(err) => return Err(err.to_string()),
+        };
+        let hardware_module = HardwareModule::new()?;
+        let computer_info = ComputerInfo::new()?;
+        let cpu_info = CpuInfo::new()?;
+        Ok(DriverConfig {
+            impoted_module: match Self::get_computer_hardware_module(
+                &hardware_module,
+                &computer_info,
+                &vga_info,
+            ) {
+                Some(s) => vec![s.to_string()],
+                None => Self::get_common_hardware_module(&hardware_module, &vga_info, &cpu_info),
+            },
+            fingerprint: ComputerInfo::has_fingerprint_device(),
+            iio_sensor: ComputerInfo::has_iio_device(),
+        })
+    }
+
+    pub fn get_module(&self) -> &Vec<String> {
+        return &self.impoted_module;
+    }
+
+    pub fn get_fingerprint(&self) -> bool {
+        return self.fingerprint;
+    }
+
+    pub fn get_iio_sensor(&self) -> bool {
+        return self.iio_sensor;
     }
 }
 
