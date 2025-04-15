@@ -246,7 +246,10 @@ impl DriverConfig<'_> {
                     .iter()
                     .all(|s2| cpu_info.get_codename().contains(s2))
             }) {
-                Some(p) => constructor_module[p].strip_suffix("/default.nix").clone(),
+                Some(p) => constructor_module[p]
+                    .strip_suffix("/default.nix")
+                    .unwrap()
+                    .to_string(),
                 None => path_cpu.strip_suffix('/').unwrap().to_string(),
             },
         );
@@ -270,7 +273,12 @@ impl DriverConfig<'_> {
                         .iter()
                         .position(|s| s.split('/').collect::<Vec<&str>>()[3].eq(arch))
                     {
-                        all_module.push(nvidia_module[p].strip_suffix("/default.nix").clone());
+                        all_module.push(
+                            nvidia_module[p]
+                                .strip_suffix("/default.nix")
+                                .unwrap()
+                                .to_string(),
+                        );
                     } else {
                         all_module.push(String::from("common/gpu/nvidia"));
                     }
