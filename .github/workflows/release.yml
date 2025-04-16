@@ -1,21 +1,37 @@
+name: Release
 on:
   release:
     types: [created]
 
 jobs:
   release:
-    name: release ${{ matrix.target }}
-    runs-on: ubuntu-latest
+    name: Release - ${{ matrix.platform.release_for }}
     strategy:
-      fail-fast: false
       matrix:
-        os: [ubuntu-latest]
+        platform:
+          - os_name: Linux-x86_64
+            os: ubuntu-24.04
+            target: x86_64-unknown-linux-musl
+
+          - os_name: macOS-x86_64
+            os: macOS-latest
+            target: x86_64-apple-darwin
+
+            # more release targets here ...
+
+    runs-on: ${{ matrix.platform.os }}
     steps:
-      - uses: actions/checkout@master
-      - name: Compile and release
-        uses: rust-build/rust-build.action@v1.4.5
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Checkout
+        uses: actions/checkout@v3
+      - name: Build executable
+        uses: houseabsolute/actions-rust-cross@v0
         with:
-          RUSTTARGET: ${{ matrix.target }}
-          EXTRA_FILES: "README.md LICENSE"
+          target: ${{ matrix.platform.target }}
+          args: "--locked --release"
+          strip: true
+      - name: Publish artifacts and release
+        uses: houseabsolute/actions-rust-release@v0
+        with:
+          executable-name: ubi
+          target: ${{ matrix.platform.target }}
+        if: matrix.toolchain == 'stable'
