@@ -1,7 +1,8 @@
 name: Release
 on:
-  release:
-    types: [created]
+  push:
+    branches:
+      - master
 
 jobs:
   release:
@@ -33,5 +34,6 @@ jobs:
         uses: houseabsolute/actions-rust-release@v0
         with:
           executable-name: winteros-detect-hardware
+          args: "--locked --release"
           target: ${{ matrix.platform.target }}
         if: matrix.toolchain == 'stable'
