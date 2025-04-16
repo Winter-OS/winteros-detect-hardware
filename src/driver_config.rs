@@ -1,7 +1,7 @@
+use crate::hardware_driver::HardwareModule;
 use crate::system_info::ComputerInfo;
 use crate::system_info::CpuInfo;
 use crate::system_info::VgaInfo;
-use crate::HardwareModule;
 
 #[derive(Debug)]
 pub struct DriverConfig {
