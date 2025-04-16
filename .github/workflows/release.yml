@@ -32,6 +32,6 @@ jobs:
       - name: Publish artifacts and release
         uses: houseabsolute/actions-rust-release@v0
         with:
-          executable-name: ubi
+          executable-name: winteros-detect-hardware
           target: ${{ matrix.platform.target }}
         if: matrix.toolchain == 'stable'
