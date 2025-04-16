@@ -19,6 +19,8 @@ jobs:
             target: x86_64-apple-darwin
 
             # more release targets here ...
+        library:
+          - name: openssl
 
     runs-on: ${{ matrix.platform.os }}
     steps:
