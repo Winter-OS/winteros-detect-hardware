@@ -17,11 +17,6 @@ jobs:
           - os_name: macOS-x86_64
             os: macOS-latest
             target: x86_64-apple-darwin
-
-            # more release targets here ...
-        library:
-          - name: libssl-dev
-
     runs-on: ${{ matrix.platform.os }}
     steps:
       - name: Checkout
