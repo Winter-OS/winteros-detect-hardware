@@ -20,7 +20,7 @@ jobs:
 
             # more release targets here ...
         library:
-          - name: openssl
+          - name: libssl-dev
 
     runs-on: ${{ matrix.platform.os }}
     steps:
