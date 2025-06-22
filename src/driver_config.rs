@@ -227,6 +227,7 @@ impl DriverConfig {
         hardware_module: &'a HardwareModule,
         vga_info: &VgaInfo,
         cpu_info: &CpuInfo,
+        computer_info: &ComputerInfo,
     ) -> Vec<String> {
         let mut all_module: Vec<String> = vec![];
 
@@ -314,9 +315,12 @@ impl DriverConfig {
 
         if ComputerInfo::is_laptop() {
             all_module.push(String::from("common/pc/laptop/"));
-            if ComputerInfo::has_hdd() {
-                all_module.push(String::from("common/pc/laptop/hdd"));
-            }
+        } else {
+            all_module.push(String::from("common/pc/"));
+        }
+
+        if computer_info.has_ssd() {
+            all_module.push(String::from("common/pc/ssd"));
         }
 
         all_module
@@ -337,7 +341,12 @@ impl DriverConfig {
                 &vga_info,
             ) {
                 Some(s) => vec![s.to_string()],
-                None => Self::get_common_hardware_module(&hardware_module, &vga_info, &cpu_info),
+                None => Self::get_common_hardware_module(
+                    &hardware_module,
+                    &vga_info,
+                    &cpu_info,
+                    &computer_info,
+                ),
             },
             fingerprint: ComputerInfo::has_fingerprint_device(),
             iio_sensor: ComputerInfo::has_iio_device(),

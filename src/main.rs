@@ -1,6 +1,6 @@
 mod driver_config;
-use system_info;
 use driver_config::DriverConfig;
+use system_info;
 
 mod hardware_driver;
 

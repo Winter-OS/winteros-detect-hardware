@@ -1072,7 +1072,7 @@ dependencies = [
 [[package]]
 name = "system_info"
 version = "1.0.0"
-source = "git+https://github.com/Winter-OS/system_info.git#9fad4859902cf1715305a92850f82f12900edc05"
+source = "git+https://github.com/Winter-OS/system_info.git#31d7518aa685463a0a9d40ec9df814694e659b86"
 dependencies = [
  "regex",
 ]
