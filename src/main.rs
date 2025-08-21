@@ -10,6 +10,9 @@ use std::fs::File;
 use std::process::exit;
 
 #[cfg(not(debug_assertions))]
+use std::process::Command;
+
+#[cfg(not(debug_assertions))]
 use nix::unistd::Uid;
 
 #[cfg(debug_assertions)]
@@ -21,7 +24,14 @@ const PATH_FILE: &str = "/etc/nixos/winteros-hardware.nix";
 fn main() {
     #[cfg(not(debug_assertions))]
     if !Uid::effective().is_root() {
-        println!("You must run this executable with root permissions");
+        let exe = std::env::current_exe().unwrap();
+        let args: Vec<_> = std::env::args().skip(1).collect();
+
+        let status = Command::new("pkexec")
+            .arg(exe)
+            .args(args)
+            .status()
+            .expect("Impossible de lancer pkexec");
         exit(13);
     }
     let config = match DriverConfig::new() {
