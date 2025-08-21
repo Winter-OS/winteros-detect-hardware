@@ -8,6 +8,7 @@ mod config_file;
 
 use std::fs::File;
 use std::io::Write;
+use std::process::Stdio;
 use std::process::exit;
 
 use std::process::Command;
@@ -46,7 +47,8 @@ fn main() {
         let mut child = Command::new("pkexec")
             .arg("tee") // tee écrit dans un fichier même en root
             .arg(PATH_FILE)
-            .stdin(std::process::Stdio::piped())
+            .stdin(Stdio::piped())
+            .stdout(Stdio::null())
             .spawn()
             .expect("Impossible de lancer pkexec");
 
