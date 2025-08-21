@@ -23,14 +23,30 @@
          in {
             default = naerskLib.buildPackage {
                 src = ./.;
-                buildInputs = with pkgs; [ glib pciutils usbutils cpuid ];
-                nativeBuildInputs = with pkgs; [ pkg-config ];
+                buildInputs = with pkgs; [ glib ];
+                runtimeInputs = with pkgs; [ pciutils usbutils cpuid ];
+                nativeBuildInputs = with pkgs; [ pkg-config makeWrapper ];
+
+                postInstall = ''
+                    wrapProgram $out/bin/winteros-detect-hardware \
+                        --prefix PATH : ${pkgs.pciutils}/bin \
+                        --prefix PATH : ${pkgs.usbutils}/bin \
+                        --prefix PATH : ${pkgs.cpuid}/bin
+                  '';
             };
             debug = naerskLib.buildPackage {
                 src = ./.;
                 release = false;
-                buildInputs = with pkgs; [ glib pciutils usbutils cpuid ];
-                nativeBuildInputs = [ pkgs.pkg-config ];
+                buildInputs = with pkgs; [ glib ];
+                runtimeInputs = with pkgs; [ pciutils usbutils cpuid ];
+                nativeBuildInputs = with pkgs; [ pkg-config makeWrapper ];
+
+                postInstall = ''
+                wrapProgram $out/bin/winteros-detect-hardware \
+                    --prefix PATH : ${pkgs.pciutils}/bin \
+                    --prefix PATH : ${pkgs.usbutils}/bin \
+                    --prefix PATH : ${pkgs.cpuid}/bin
+                '';
             };
          });
     };

@@ -7,9 +7,9 @@ mod hardware_driver;
 mod config_file;
 
 use std::fs::File;
+use std::io::Write;
 use std::process::exit;
 
-#[cfg(not(debug_assertions))]
 use std::process::Command;
 
 #[cfg(not(debug_assertions))]
@@ -22,18 +22,6 @@ const PATH_FILE: &str = "./winteros-hardware.nix";
 const PATH_FILE: &str = "/etc/nixos/winteros-hardware.nix";
 
 fn main() {
-    #[cfg(not(debug_assertions))]
-    if !Uid::effective().is_root() {
-        let exe = std::env::current_exe().unwrap();
-        let args: Vec<_> = std::env::args().skip(1).collect();
-
-        let status = Command::new("pkexec")
-            .arg(exe)
-            .args(args)
-            .status()
-            .expect("Impossible de lancer pkexec");
-        exit(13);
-    }
     let config = match DriverConfig::new() {
         Ok(conf) => conf,
         Err(err) => {
@@ -48,12 +36,34 @@ fn main() {
         config.get_iio_sensor()
     );
 
-    let mut config_file = File::create(PATH_FILE).unwrap();
-    let _ = match config_file::write_config(&config, &mut config_file) {
-        Ok(_) => (),
-        Err(err) => {
-            println!("Impossible to write config file : {}", err.to_string());
-            exit(1);
-        }
-    };
+
+    #[cfg(not(debug_assertions))]
+    let is_root = !Uid::effective().is_root();
+    #[cfg(debug_assertions)]
+    let is_root = false;
+
+    if is_root {
+        let mut child = Command::new("pkexec")
+            .arg("tee") // tee écrit dans un fichier même en root
+            .arg(PATH_FILE)
+            .stdin(std::process::Stdio::piped())
+            .spawn()
+            .expect("Impossible de lancer pkexec");
+
+            if let Some(stdin) = child.stdin.as_mut() {
+                stdin.write_all(config.to_config_file()
+                     .as_bytes())
+                     .expect("fail to write config file");
+            }
+    } else {
+        let mut config_file = File::create(PATH_FILE).unwrap();
+        let _ = match config_file::write_config(&config, &mut config_file) {
+            Ok(_) => (),
+            Err(err) => {
+                println!("Impossible to write config file : {}", err.to_string());
+                exit(1);
+            }
+        };
+    }
+
 }
