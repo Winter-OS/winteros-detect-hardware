@@ -23,13 +23,13 @@
          in {
             default = naerskLib.buildPackage {
                 src = ./.;
-                buildInputs = [ pkgs.glib ];
-                nativeBuildInputs = [ pkgs.pkg-config ];
+                buildInputs = with pkgs; [ glib pciutils usbutils cpuid ];
+                nativeBuildInputs = with pkgs; [ pkg-config ];
             };
             debug = naerskLib.buildPackage {
                 src = ./.;
                 release = false;
-                buildInputs = [ pkgs.glib ];
+                buildInputs = with pkgs; [ glib pciutils usbutils cpuid ];
                 nativeBuildInputs = [ pkgs.pkg-config ];
             };
          });
